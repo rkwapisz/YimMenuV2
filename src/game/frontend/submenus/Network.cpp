@@ -4,7 +4,6 @@
 #include "game/frontend/items/Items.hpp"
 #include "game/frontend/submenus/Network/SavedPlayers.hpp"
 #include "game/frontend/submenus/Network/RandomEvents.hpp"
-#include "game/frontend/submenus/Network/SessionBrowser.hpp"
 #include "game/gta/Network.hpp"
 
 namespace YimMenu::Submenus
@@ -137,7 +136,6 @@ namespace YimMenu::Submenus
 		AddCategory(std::move(session));
 		AddCategory(std::move(spoofing));
 		AddCategory(std::move(BuildSavedPlayersMenu()));
-		AddCategory(std::move(BuildSessionBrowser()));
 		AddCategory(BuildRandomEventsMenu());
 	}
 }
