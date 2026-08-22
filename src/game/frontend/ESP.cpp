@@ -48,6 +48,7 @@ namespace YimMenu::Features
 	// Peds
 	BoolCommand _ESPDrawPeds("espdrawpeds", "Draw Peds", "Should the ESP draw peds?");
 	BoolCommand _ESPDrawDeadPeds("espdrawdeadpeds", "Draw Dead Peds", "Should the ESP draw dead peds?");
+	BoolCommand _ESPDrawOnlyEnemiesPeds("espdrawonlyenemiespeds", "Draw Only Enemies", "Should the ESP only draw enemy peds?");
 
 	BoolCommand _ESPModelPeds("espmodelspeds", "Show Ped Model", "Should the ESP draw ped models?");
 	BoolCommand _ESPNetworkInfoPeds("espnetinfopeds", "Show Ped Network Info", "Should the ESP draw network info?");
@@ -185,7 +186,12 @@ namespace YimMenu
 
 	static void DrawPed(Ped ped, ImDrawList* drawList)
 	{
-		if (!ped.IsValid() || ped.IsPlayer() || ped == Self::GetPlayer().GetPed() || !worldToScreen(ped.GetBonePosition(torsoBone)) || (ped.IsDead() && !Features::_ESPDrawDeadPeds.GetState()))
+		if (!ped.IsValid()
+		    || ped.IsPlayer()
+		    || ped == Self::GetPlayer().GetPed()
+		    || (Features::_ESPDrawOnlyEnemiesPeds.GetState() && !ped.IsEnemy())
+		    || !worldToScreen(ped.GetBonePosition(torsoBone))
+		    || (ped.IsDead() && !Features::_ESPDrawDeadPeds.GetState()))
 			return;
 
 		float distanceToPed = 0.0f;
