@@ -53,7 +53,7 @@ namespace YimMenu
 		return veh;
 	}
 
-	void Vehicle::Fix()
+	void Vehicle::Repair()
 	{
 		ENTITY_ASSERT_VALID();
 		ENTITY_ASSERT_CONTROL();

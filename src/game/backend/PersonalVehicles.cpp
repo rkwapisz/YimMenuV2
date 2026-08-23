@@ -345,7 +345,7 @@ namespace YimMenu
 		return true;
 	}
 
-	bool PersonalVehicles::PersonalVehicle::Repair()
+	bool PersonalVehicles::PersonalVehicle::RecoverVehicles()
 	{
 		if (m_Data->PersonalVehicleFlags.IsSet(ePersonalVehicleFlags::DESTROYED) && m_Data->PersonalVehicleFlags.IsSet(ePersonalVehicleFlags::HAS_INSURANCE))
 		{
@@ -368,7 +368,7 @@ namespace YimMenu
 			if (!GetCurrent()->Despawn())
 				return false;
 
-			Repair();
+			RecoverVehicles();
 			
 			ScriptMgr::Yield(100ms);
 

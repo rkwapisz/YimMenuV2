@@ -10,7 +10,7 @@ namespace YimMenu::Features
 		virtual void OnCall() override
 		{
 			if (Self::GetVehicle())
-				Self::GetVehicle().Fix();
+				Self::GetVehicle().Repair();
 		}
 	};
 

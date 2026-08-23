@@ -32,7 +32,7 @@ namespace YimMenu
 			void SetGarage();
 
 			bool Despawn();
-			bool Repair();
+			bool RecoverVehicles();
 			bool Request(bool bring = false);
 			Vehicle Clone(rage::fvector3 coords, float heading);
 		};

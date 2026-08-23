@@ -3,7 +3,7 @@
 
 namespace YimMenu::Features
 {
-	class KeepFixed : public LoopedCommand
+	class KeepRepaired : public LoopedCommand
 	{
 		using LoopedCommand::LoopedCommand;
 
@@ -11,9 +11,9 @@ namespace YimMenu::Features
 		{
 			auto veh = Self::GetVehicle();
 			if (veh)
-				veh.Fix();
+				veh.Repair();
 		}
 	};
 
-	static KeepFixed _KeepFixed{"keepfixed", "Keep Vehicle Fixed", "Keeps your vehicle clean and fixed"};
+	static KeepRepaired _KeepRepaired{"keeprepaired", "Keep Vehicle Repaired", "Keeps your vehicle clean and repaired."};
 }

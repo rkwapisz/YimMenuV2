@@ -235,7 +235,7 @@ namespace YimMenu::Features
 					{
 						if (m_Entity.IsVehicle())
 						{
-							m_Entity.As<Vehicle>().Fix();
+							m_Entity.As<Vehicle>().Repair();
 						}
 						else
 						{

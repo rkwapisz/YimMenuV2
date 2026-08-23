@@ -27,7 +27,7 @@ namespace YimMenu::Lua
 
 		static int Fix(lua_State* state)
 		{
-			GetObject<YimMenu::Vehicle>(state, 1).Fix();
+			GetObject<YimMenu::Vehicle>(state, 1).Repair();
 			return 0;
 		}
 

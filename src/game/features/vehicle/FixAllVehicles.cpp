@@ -18,16 +18,16 @@ namespace YimMenu::Features
 			for (const auto& it : PersonalVehicles::GetPersonalVehicles())
 			{
 				const auto& personalVeh = it.second;
-				if (personalVeh->Repair())
+				if (personalVeh->RecoverVehicles())
 					count++;
 			}
 
 			if (count > 0)
-				Notifications::Show("Fix All Vehicles", std::format("{} vehicles fixed.", count), NotificationType::Success);
+				Notifications::Show("Recover All Vehicles", std::format("{} vehicles recovered.", count), NotificationType::Success);
 			else
-				Notifications::Show("Fix All Vehicles", "No vehicles to fix.");
+				Notifications::Show("Recover All Vehicles", "No vehicles to recover.");
 		}
 	};
 
-	static FixAllVehicles _FixAllVehicles{"fixallvehicles", "Fix All Vehicles", "Fixes all of your destroyed personal vehicles."};
+	static FixAllVehicles _FixAllVehicles{"recoverallvehicles", "Recover All Personal Vehicles", "Recovers all destroyed and impounded personal vehicles."};
 }

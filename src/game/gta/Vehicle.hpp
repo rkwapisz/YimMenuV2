@@ -13,7 +13,7 @@ namespace YimMenu
 		static Vehicle Create(std::uint32_t model, rage::fvector3 coords, float heading = 0.0f, bool setOnGroundProperly = true);
 
 		// health
-		void Fix();
+		void Repair();
 
 		// gears
 		int GetGear();
