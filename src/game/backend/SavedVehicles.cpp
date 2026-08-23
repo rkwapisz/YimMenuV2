@@ -144,10 +144,12 @@ namespace YimMenu
 			Notifications::Show("Persist Car", "Tried to save a vehicle which does not exist", NotificationType::Warning);
 	}
 
-	void SavedVehicles::Load(std::string folderName, std::string fileName, bool spawnInside)
+void SavedVehicles::Load(std::string folderName, std::string fileName, bool spawnInside)
 	{
 		if (!fileName.empty())
 		{
+			const std::string displayName = std::filesystem::path(fileName).stem().string();
+
 			const auto file = CheckFolder(folderName).GetFile(fileName).Path();
 
 			if (!std::filesystem::exists(file))
@@ -168,10 +170,15 @@ namespace YimMenu
 				{
 					if (spawnInside)
 						Self::GetPed().SetInVehicle(veh.GetHandle());
-					Notifications::Show("Persist Car", std::format("Spawned {}", fileName), NotificationType::Success);
+
+					const std::string displayName = std::filesystem::path(fileName).stem().string();
+
+					Notifications::Show("Persist Car", std::format("Spawned {}", displayName), NotificationType::Success);
 				}
 				else
-					Notifications::Show("Persist Car", std::format("Unable to spawn {}", fileName), NotificationType::Error);
+				{
+					Notifications::Show("Persist Car", std::format("Unable to spawn {}", displayName), NotificationType::Error);
+				}
 			}
 			catch (std::exception& e)
 			{

@@ -77,6 +77,7 @@ namespace YimMenu::Submenus
 						int owner_mod = owned_mods[slot];
 
 						std::string slot_name = VehicleModel::GetModSlotName(model, currentVeh, slot);
+
 						if (slot_name.empty())
 							continue;
 
@@ -247,7 +248,6 @@ namespace YimMenu::Submenus
 					if (selected_slot != -1)
 					{
 						auto wheel_stock_mod = &front_wheel_stock_mod;
-						auto wheel_custom = &owned_mods[(int)CustomVehicleModType::MOD_FRONTWHEEL_VAR];
 						bool is_wheel_mod = false;
 
 						if (selected_slot == (int)VehicleModType::MOD_FRONTWHEEL)
@@ -255,7 +255,6 @@ namespace YimMenu::Submenus
 						else if (selected_slot == (int)VehicleModType::MOD_REARWHEEL)
 						{
 							wheel_stock_mod = &rear_wheel_stock_mod;
-							wheel_custom = &owned_mods[(int)CustomVehicleModType::MOD_REARWHEEL_VAR];
 							is_wheel_mod = true;
 						}
 						else
@@ -279,34 +278,51 @@ namespace YimMenu::Submenus
 
 									if (ImGui::Selectable(name.c_str(), item_selected))
 									{
-										FiberPool::Push([&mod, is_wheel_mod, wheel_stock_mod, wheel_custom, name] {
-											if (selected_slot >= 0)
+										const int vehicle = currentVeh;
+										const int slot = selected_slot;
+										const int mod_index = mod;
+
+										FiberPool::Push([vehicle, slot, mod_index, is_wheel_mod, wheel_stock_mod] {
+											const bool is_standard_mod_slot =
+											    slot >= (int)VehicleModType::MOD_SPOILERS && slot <= (int)VehicleModType::MOD_LIGHTBAR;
+
+											if (is_standard_mod_slot)
 											{
-												VEHICLE::SET_VEHICLE_MOD(currentVeh, selected_slot, mod, 0);
-												owned_mods[selected_slot] = mod;
+												VEHICLE::SET_VEHICLE_MOD(vehicle, slot, mod_index, 0);
+												owned_mods[slot] = mod_index;
 
 												if (is_wheel_mod)
 												{
-													*wheel_stock_mod = mod;
-													*wheel_custom = 0;
+													*wheel_stock_mod = mod_index;
+
+													const auto wheel_custom_type = slot == (int)VehicleModType::MOD_REARWHEEL ? CustomVehicleModType::MOD_REARWHEEL_VAR : CustomVehicleModType::MOD_FRONTWHEEL_VAR;
+													owned_mods[(int)wheel_custom_type] = 0;
 												}
+
+												return;
 											}
-											else if (selected_slot == (int)CustomVehicleModType::MOD_WINDOW_TINT)
+
+											switch ((CustomVehicleModType)slot)
 											{
-												VEHICLE::SET_VEHICLE_WINDOW_TINT(currentVeh, mod);
-												owned_mods[selected_slot] = mod;
-											}
-											else if (selected_slot == (int)CustomVehicleModType::MOD_WHEEL_TYPE)
-											{
-												VEHICLE::SET_VEHICLE_WHEEL_TYPE(currentVeh, mod);
-												VEHICLE::SET_VEHICLE_MOD(currentVeh, (int)VehicleModType::MOD_FRONTWHEEL, 0, 0);
-												VEHICLE::SET_VEHICLE_MOD(currentVeh, (int)VehicleModType::MOD_REARWHEEL, 0, 0);
+											case CustomVehicleModType::MOD_WINDOW_TINT:
+												VEHICLE::SET_VEHICLE_WINDOW_TINT(vehicle, mod_index);
+												owned_mods[slot] = mod_index;
+												break;
+
+											case CustomVehicleModType::MOD_WHEEL_TYPE:
+												VEHICLE::SET_VEHICLE_WHEEL_TYPE(vehicle, mod_index);
+												VEHICLE::SET_VEHICLE_MOD(vehicle, (int)VehicleModType::MOD_FRONTWHEEL, 0, 0);
+												VEHICLE::SET_VEHICLE_MOD(vehicle, (int)VehicleModType::MOD_REARWHEEL, 0, 0);
 												currentVeh = -1;
-											}
-											else if (selected_slot == (int)CustomVehicleModType::MOD_PLATE_STYLE)
-											{
-												VEHICLE::SET_VEHICLE_NUMBER_PLATE_TEXT_INDEX(currentVeh, mod);
-												owned_mods[selected_slot] = mod;
+												break;
+
+											case CustomVehicleModType::MOD_PLATE_STYLE:
+												VEHICLE::SET_VEHICLE_NUMBER_PLATE_TEXT_INDEX(vehicle, mod_index);
+												owned_mods[slot] = mod_index;
+												break;
+
+											default:
+												break;
 											}
 										});
 									}
@@ -329,28 +345,41 @@ namespace YimMenu::Submenus
 									std::string mod_name = mod_display_names[selected_slot][*wheel_stock_mod];
 									auto wheel_mods = wheel_map[mod_name];
 
+									const int wheel_custom_type = selected_slot == (int)VehicleModType::MOD_REARWHEEL ? (int)CustomVehicleModType::MOD_REARWHEEL_VAR : (int)CustomVehicleModType::MOD_FRONTWHEEL_VAR;
+
 									for (int i = 0; i < wheel_mods.size(); i++)
 									{
-										int& mod = wheel_mods[i];
+										const int mod = wheel_mods[i];
 
 										int should_custom = 0;
 
 										// bennys fix
 										if (!isBennys)
 										{
-											if (i == 0 && ImGui::Selectable("Stock", mod == owned_mods[selected_slot] && *wheel_custom == 0))
-												FiberPool::Push([&mod] {
-													VEHICLE::SET_VEHICLE_MOD(currentVeh, selected_slot, mod, 0);
+											if (i == 0 && ImGui::Selectable("Stock", mod == owned_mods[selected_slot] && owned_mods[wheel_custom_type] == 0))
+											{
+												const int vehicle = currentVeh;
+												const int slot = selected_slot;
+
+												FiberPool::Push([vehicle, slot, mod] {
+													VEHICLE::SET_VEHICLE_MOD(vehicle, slot, mod, 0);
 													currentVeh = -1;
 												});
+											}
+
 											should_custom = 1;
 										}
 
-										if (ImGui::Selectable(("Style " + std::to_string(mod)).c_str(), mod == owned_mods[selected_slot] && *wheel_custom == should_custom))
-											FiberPool::Push([&mod, should_custom] {
-												VEHICLE::SET_VEHICLE_MOD(currentVeh, selected_slot, mod, should_custom);
+										if (ImGui::Selectable(("Style " + std::to_string(mod)).c_str(), mod == owned_mods[selected_slot] && owned_mods[wheel_custom_type] == should_custom))
+										{
+											const int vehicle = currentVeh;
+											const int slot = selected_slot;
+
+											FiberPool::Push([vehicle, slot, mod, should_custom] {
+												VEHICLE::SET_VEHICLE_MOD(vehicle, slot, mod, should_custom);
 												currentVeh = -1;
 											});
+										}
 									}
 									ImGui::EndListBox();
 								}

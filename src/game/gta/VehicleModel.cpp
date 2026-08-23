@@ -66,6 +66,9 @@ namespace YimMenu
 				return HUD::GET_FILENAME_FOR_AUDIO_CONVERSATION("CMM_MOD_S18c");
 			else
 				return HUD::GET_FILENAME_FOR_AUDIO_CONVERSATION("CMM_MOD_S18");
+		case VehicleModType::MOD_ROOF:
+			if (VEHICLE::IS_THIS_MODEL_A_BIKE(model))
+				return "Fuel Tanks";
 		case VehicleModType::MOD_TRIM:
 			if (model == "SULTANRS"_J)
 				return HUD::GET_FILENAME_FOR_AUDIO_CONVERSATION("CMM_MOD_S19b");

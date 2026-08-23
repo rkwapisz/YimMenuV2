@@ -136,7 +136,7 @@ namespace YimMenu::Submenus
 		return tab;
 	}
 
-	std::shared_ptr<TabItem> RenderSpawnPersonalVehicle()
+std::shared_ptr<TabItem> RenderSpawnPersonalVehicle()
 	{
 		auto tab = std::make_shared<TabItem>("Personal Vehicle");
 
@@ -144,6 +144,7 @@ namespace YimMenu::Submenus
 		auto settings = std::make_shared<Group>("Settings");
 
 		static std::string selectedGarageStr{""};
+		static int selectedClass{-1};
 
 		spawn->AddItem(std::make_unique<ImGuiItem>([] {
 			if (!*Pointers.IsSessionStarted)
@@ -152,6 +153,7 @@ namespace YimMenu::Submenus
 			PersonalVehicles::Update();
 
 			static char search[64];
+
 			ImGui::SetNextItemWidth(300.f);
 			ImGui::InputTextWithHint("Name", "Search", search, sizeof(search));
 
@@ -162,7 +164,8 @@ namespace YimMenu::Submenus
 				{
 					selectedGarageStr.clear();
 				}
-				for (auto garage : PersonalVehicles::GetGarages())
+
+				for (const auto& garage : PersonalVehicles::GetGarages())
 				{
 					if (ImGui::Selectable(garage.c_str(), garage == selectedGarageStr))
 					{
@@ -173,8 +176,29 @@ namespace YimMenu::Submenus
 				ImGui::EndCombo();
 			}
 
+			ImGui::SetNextItemWidth(300.f);
+			if (ImGui::BeginCombo("Class", selectedClass == -1 ? "All" : g_VehicleClassNames[selectedClass]))
+			{
+				if (ImGui::Selectable("All", selectedClass == -1))
+				{
+					selectedClass = -1;
+				}
+
+				for (int i = 0; i < g_VehicleClassNames.size(); i++)
+				{
+					if (ImGui::Selectable(g_VehicleClassNames[i], selectedClass == i))
+					{
+						selectedClass = i;
+					}
+				}
+
+				ImGui::EndCombo();
+			}
+
 			const int visible = std::min(20, static_cast<int>(PersonalVehicles::GetPersonalVehicles().size()));
+
 			const float height = visible * ImGui::GetTextLineHeightWithSpacing();
+
 			if (ImGui::BeginListBox("##personalvehicles", {300.f, height}))
 			{
 				if (PersonalVehicles::GetPersonalVehicles().empty())
@@ -184,7 +208,8 @@ namespace YimMenu::Submenus
 				else
 				{
 					std::string lowerSearch = search;
-					std::transform(lowerSearch.begin(), lowerSearch.end(), lowerSearch.begin(), tolower);
+					std::transform(lowerSearch.begin(), lowerSearch.end(), lowerSearch.begin(), ::tolower);
+
 					for (const auto& it : PersonalVehicles::GetPersonalVehicles())
 					{
 						const auto& label = it.first;
@@ -193,30 +218,42 @@ namespace YimMenu::Submenus
 						auto lowerName = label;
 						std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(), ::tolower);
 
-						bool matchesSearch = lowerName.find(lowerSearch) != std::string::npos;
-						bool matchesGarage = selectedGarageStr.empty() || personalVeh->GetGarage() == selectedGarageStr;
-						if (matchesSearch && matchesGarage)
+						const bool matchesSearch = lowerName.find(lowerSearch) != std::string::npos;
+
+						const bool matchesGarage = selectedGarageStr.empty() || personalVeh->GetGarage() == selectedGarageStr;
+
+						const int vehicleClass = VEHICLE::GET_VEHICLE_CLASS_FROM_NAME(personalVeh->GetModel());
+
+						const bool matchesClass = selectedClass == -1 || vehicleClass == selectedClass;
+
+						if (matchesSearch && matchesGarage && matchesClass)
 						{
 							ImGui::PushID(personalVeh->GetId());
+
 							if (ImGui::Selectable(label.c_str()))
 							{
 								FiberPool::Push([&personalVeh] {
 									if (spawnClonePersonalVehicle.GetState())
 									{
-										auto coords  = Vehicle::GetSpawnLocRelToPed(Self::GetPed().GetHandle(), personalVeh->GetModel());
+										auto coords = Vehicle::GetSpawnLocRelToPed(Self::GetPed().GetHandle(), personalVeh->GetModel());
+
 										auto heading = Self::GetPed().GetHeading();
-										auto handle  = personalVeh->Clone(coords, heading);
-										
+
+										auto handle = personalVeh->Clone(coords, heading);
+
 										if (spawnInsidePersonalVehicle.GetState())
 											Self::GetPed().SetInVehicle(handle);
 									}
 									else
 									{
 										if (!personalVeh->Request(spawnInsidePersonalVehicle.GetState()))
+										{
 											Notifications::Show("Spawn Personal Vehicle", "Failed to spawn Personal Vehicle.", NotificationType::Error);
+										}
 									}
 								});
 							}
+
 							ImGui::PopID();
 						}
 					}
@@ -227,11 +264,12 @@ namespace YimMenu::Submenus
 		}));
 
 		settings->AddItem(std::make_shared<BoolCommandItem>("spawninsidepv"_J));
-		settings->AddItem(std::make_shared<BoolCommandItem>("spawnclonepv"_J));
 
+		settings->AddItem(std::make_shared<BoolCommandItem>("spawnclonepv"_J));
 
 		tab->AddItem(spawn);
 		tab->AddItem(settings);
+
 		return tab;
 	}
 

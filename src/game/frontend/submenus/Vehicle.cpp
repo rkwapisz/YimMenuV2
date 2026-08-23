@@ -13,14 +13,18 @@ namespace YimMenu::Submenus
 		auto main = std::make_shared<Category>("Main");
 
 		auto vehicle_health = std::make_shared<Group>("Vehicle Health");
-		auto allvehicles = std::make_shared<Group>("All Vehicles");
+		auto combat = std::make_shared<Group>("Combat");
 		auto personal_vehicle = std::make_shared<Group>("Personal Vehicle");
 		auto recovery = std::make_shared<Group>("Recovery");
-		auto misc = std::make_shared<Group>("Misc", 4);
+		auto misc = std::make_shared<Group>("Misc");
 
 		vehicle_health->AddItem(std::make_shared<CommandItem>("repairvehicle"_J));
 		vehicle_health->AddItem(std::make_shared<BoolCommandItem>("vehiclegodmode"_J, "God Mode"));
 		vehicle_health->AddItem(std::make_shared<BoolCommandItem>("keeprepaired"_J, "Keep Repaired"));
+		vehicle_health->AddItem(std::make_shared<BoolCommandItem>("indestructibletires"_J));
+
+		combat->AddItem(std::make_shared<BoolCommandItem>("disablemissilelockon"_J));
+		combat->AddItem(std::make_shared<BoolCommandItem>("infinitevehicleammo"_J));
 
 		personal_vehicle->AddItem(std::make_shared<CommandItem>("requestpv"_J));
 		personal_vehicle->AddItem(std::make_shared<CommandItem>("despawnpv"_J));
@@ -33,6 +37,10 @@ namespace YimMenu::Submenus
 		misc->AddItem(std::make_shared<BoolCommandItem>("hornboost"_J));
 		misc->AddItem(std::make_shared<BoolCommandItem>("modifyboostbehavior"_J));
 		misc->AddItem(std::make_shared<ConditionalItem>("modifyboostbehavior"_J, std::make_shared<ListCommandItem>("boostbehavior"_J)));
+		misc->AddItem(std::make_shared<BoolCommandItem>("autoflip"_J));
+		misc->AddItem(std::make_shared<BoolCommandItem>("vehiclenocollision"_J));
+		misc->AddItem(std::make_shared<BoolCommandItem>("invisiblevehicle"_J));
+		misc->AddItem(std::make_shared<BoolCommandItem>("instantbrake"_J));
 		misc->AddItem(std::make_shared<BoolCommandItem>("speedometer"_J));
 		misc->AddItem(std::make_shared<BoolCommandItem>("seatbelt"_J));
 		misc->AddItem(std::make_shared<BoolCommandItem>("lowervehiclestance"_J, "Lower Stance"));
@@ -41,6 +49,7 @@ namespace YimMenu::Submenus
 		misc->AddItem(std::make_shared<BoolCommandItem>("dlcvehicles"_J));
 
 		main->AddItem(vehicle_health);
+		main->AddItem(combat);
 		main->AddItem(personal_vehicle);
 		main->AddItem(recovery);
 		main->AddItem(misc);

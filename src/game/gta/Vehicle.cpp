@@ -112,7 +112,7 @@ namespace YimMenu
 		{
 			switch (t)
 			{
-			// Handle edge cases for special mod slike horns and turbo
+			// Handle edge cases for special mods like horns and turbo
 			case static_cast<int>(VehicleModType::MOD_HORNS):
 				VEHICLE::SET_VEHICLE_MOD(veh, t, static_cast<int>(VehicleModHorns::HORN_SANANDREAS_LOOP), false);
 				continue;
