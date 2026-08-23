@@ -2,6 +2,7 @@
 #include "core/commands/FloatCommand.hpp"
 #include "game/backend/Self.hpp"
 #include "game/gta/Natives.hpp"
+#include "game/backend/TeleportService.hpp"
 
 namespace YimMenu::Features
 {
@@ -14,7 +15,7 @@ namespace YimMenu::Features
 		virtual void OnCall() override
 		{
 			auto ped = Self::GetPed();
-			ped.TeleportTo(ENTITY::GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(ped.GetHandle(), 0, _DirectionalTpDistance.GetState(), 0));
+			TeleportService::TeleportTo(ENTITY::GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(ped.GetHandle(), 0, _DirectionalTpDistance.GetState(), 0));
 		}
 	};
 
@@ -25,7 +26,7 @@ namespace YimMenu::Features
 		virtual void OnCall() override
 		{
 			auto ped = Self::GetPed();
-			ped.TeleportTo(ENTITY::GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(ped.GetHandle(), 0, -_DirectionalTpDistance.GetState(), 0));
+			TeleportService::TeleportTo(ENTITY::GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(ped.GetHandle(), 0, -_DirectionalTpDistance.GetState(), 0));
 		}
 	};
 
@@ -36,7 +37,7 @@ namespace YimMenu::Features
 		virtual void OnCall() override
 		{
 			auto ped = Self::GetPed();
-			ped.TeleportTo(ENTITY::GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(ped.GetHandle(), _DirectionalTpDistance.GetState(), 0, 0));
+			TeleportService::TeleportTo(ENTITY::GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(ped.GetHandle(), _DirectionalTpDistance.GetState(), 0, 0));
 		}
 	};
 
@@ -47,7 +48,7 @@ namespace YimMenu::Features
 		virtual void OnCall() override
 		{
 			auto ped = Self::GetPed();
-			ped.TeleportTo(ENTITY::GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(ped.GetHandle(), -_DirectionalTpDistance.GetState(), 0, 0));
+			TeleportService::TeleportTo(ENTITY::GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(ped.GetHandle(), -_DirectionalTpDistance.GetState(), 0, 0));
 		}
 	};
 
@@ -58,7 +59,7 @@ namespace YimMenu::Features
 		virtual void OnCall() override
 		{
 			auto ped = Self::GetPed();
-			ped.TeleportTo(ENTITY::GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(ped.GetHandle(), 0, 0, _DirectionalTpDistance.GetState()));
+			TeleportService::TeleportTo(ENTITY::GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(ped.GetHandle(), 0, 0, _DirectionalTpDistance.GetState()));
 		}
 	};
 
@@ -69,7 +70,7 @@ namespace YimMenu::Features
 		virtual void OnCall() override
 		{
 			auto ped = Self::GetPed();
-			ped.TeleportTo(ENTITY::GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(ped.GetHandle(), 0, 0, -_DirectionalTpDistance.GetState()));
+			TeleportService::TeleportTo(ENTITY::GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(ped.GetHandle(), 0, 0, -_DirectionalTpDistance.GetState()));
 		}
 	};
 

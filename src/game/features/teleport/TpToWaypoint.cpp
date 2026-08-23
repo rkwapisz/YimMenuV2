@@ -5,6 +5,7 @@
 #include "game/backend/Self.hpp"
 #include "game/gta/Natives.hpp"
 #include "core/frontend/Notifications.hpp"
+#include "game/backend/TeleportService.hpp"
 
 namespace YimMenu::Features
 {
@@ -60,7 +61,7 @@ namespace YimMenu::Features
 			{
 				auto coords = HUD::GET_BLIP_COORDS(HUD::GET_CLOSEST_BLIP_INFO_ID(HUD::GET_WAYPOINT_BLIP_ENUM_ID()));
 				ResolveZCoordinate(coords);
-				Self::GetPed().TeleportTo(coords);
+				TeleportService::TeleportTo(coords);
 			}
 		}
 	};
@@ -80,7 +81,7 @@ namespace YimMenu::Features
 				FiberPool::Push([coords] {
 					auto new_coords{coords};
 					ResolveZCoordinate(new_coords);
-					Self::GetPed().TeleportTo(new_coords);
+					TeleportService::TeleportTo(new_coords);
 				});
 				HUD::SET_WAYPOINT_OFF();
 			}

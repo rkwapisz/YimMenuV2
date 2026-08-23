@@ -2,6 +2,7 @@
 #include "game/backend/Self.hpp"
 #include "game/gta/Natives.hpp"
 #include "types/blip/BlipSprite.hpp"
+#include "game/backend/TeleportService.hpp"
 
 namespace YimMenu::Features
 {
@@ -30,7 +31,7 @@ namespace YimMenu::Features
 			{
 				if (GetBlipLocationOfType(location, static_cast<int>(sprite)))
 				{
-					Self::GetPed().TeleportTo(location);
+					TeleportService::TeleportTo(location);
 					return;
 				}
 			}
