@@ -129,6 +129,9 @@ namespace YimMenu
 	{
 		ENTITY_ASSERT_VALID();
 
+		if (!PED::IS_PED_HUMAN(GetHandle())) // Funny, animals are considered enemies by this check
+			return false;
+
 		// TODO: maybe use a class member?
 		auto r1 = PED::GET_RELATIONSHIP_BETWEEN_PEDS(GetHandle(), PLAYER::PLAYER_PED_ID());
 		auto r2 = PED::GET_RELATIONSHIP_BETWEEN_PEDS(PLAYER::PLAYER_PED_ID(), GetHandle());
