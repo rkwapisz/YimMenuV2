@@ -11,6 +11,22 @@
 
 namespace YimMenu
 {
+	static std::string SanitizeFileName(std::string fileName)
+	{
+		constexpr std::string_view invalidChars = R"(<>:"/\|?*)";
+
+		std::erase_if(fileName, [](char c) {
+			return static_cast<unsigned char>(c) < 32
+			    || invalidChars.find(c) != std::string_view::npos;
+		});
+
+		// Windows filenames cannot end in a period or space.
+		while (!fileName.empty() && (fileName.back() == '.' || fileName.back() == ' '))
+			fileName.pop_back();
+
+		return fileName;
+	}
+
 	Folder SavedVehicles::CheckFolder(std::string folderName)
 	{
 		return FileMgr::GetProjectFolder("./saved_json_vehicles/" + folderName);
@@ -132,7 +148,18 @@ namespace YimMenu
 	{
 		if (auto veh = Self::GetVehicle(); veh && veh.IsValid())
 		{
-			ReplaceString(fileName, ".", ""); // filename say "bob.." will throw relative path error from Folder::GetFile
+			fileName = SanitizeFileName(std::move(fileName));
+
+			if (fileName.empty())
+			{
+				Notifications::Show(
+				    "Persist Car",
+				    "Please enter a valid vehicle name.",
+				    NotificationType::Warning);
+
+				return;
+			}
+
 			fileName += ".json";
 
 			const auto file = SavedVehicles::CheckFolder(folderName).GetFile(fileName);
@@ -141,10 +168,15 @@ namespace YimMenu
 			file_stream.close();
 		}
 		else
-			Notifications::Show("Persist Car", "Tried to save a vehicle which does not exist", NotificationType::Warning);
+		{
+			Notifications::Show(
+			    "Persist Car",
+			    "Tried to save a vehicle which does not exist",
+			    NotificationType::Warning);
+		}
 	}
 
-void SavedVehicles::Load(std::string folderName, std::string fileName, bool spawnInside)
+	void SavedVehicles::Load(std::string folderName, std::string fileName, bool spawnInside)
 	{
 		if (!fileName.empty())
 		{
