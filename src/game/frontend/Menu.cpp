@@ -47,16 +47,15 @@ namespace YimMenu
 
 	static const ImWchar* GetGlyphRangesCyrillicOnly()
 	{
-		static const ImWchar ranges[] =
-		    {
-		        0x0400,
-		        0x052F, // Cyrillic + Cyrillic Supplement
-		        0x2DE0,
-		        0x2DFF, // Cyrillic Extended-A
-		        0xA640,
-		        0xA69F, // Cyrillic Extended-B
-		        0,
-		    };
+		static const ImWchar ranges[] = {
+		    0x0400,
+		    0x052F, // Cyrillic + Cyrillic Supplement
+		    0x2DE0,
+		    0x2DFF, // Cyrillic Extended-A
+		    0xA640,
+		    0xA69F, // Cyrillic Extended-B
+		    0,
+		};
 		return &ranges[0];
 	}
 
@@ -94,8 +93,10 @@ namespace YimMenu
 		Menu::Font::g_ChildTitleFont = CreateFontWithCyrillicSupport(IO, Menu::Font::g_ChildTitleFontSize);
 		Menu::Font::g_ChatFont = CreateFontWithCyrillicSupport(IO, Menu::Font::g_ChatFontSize);
 		Menu::Font::g_OverlayFont = CreateFontWithCyrillicSupport(IO, Menu::Font::g_OverlayFontSize);
-		static const ImWchar full_range[] = {0x0020, 0xFFFF, 0};
-		Menu::Font::g_AwesomeFont = IO.Fonts->AddFontFromMemoryTTF(const_cast<std::uint8_t*>(Fonts::IconFont), sizeof(Fonts::IconFont), Menu::Font::g_AwesomeFontSize, &FontCfg, full_range);
+
+		static const ImWchar awesomeRange[] = {0xE000, 0xF8FF, 0};
+
+		Menu::Font::g_AwesomeFont = IO.Fonts->AddFontFromMemoryTTF(const_cast<std::uint8_t*>(Fonts::IconFont), sizeof(Fonts::IconFont), Menu::Font::g_AwesomeFontSize, &FontCfg, awesomeRange);
 
 		UIManager::SetOptionsFont(Menu::Font::g_OptionsFont);
 		Renderer::SetFontsUpdated();
