@@ -15,5 +15,5 @@ namespace YimMenu::Features
 		}
 	};
 
-	static KeepRepaired _KeepRepaired{"keeprepaired", "Keep Vehicle Repaired", "Keeps your vehicle clean and repaired."};
+	static KeepRepaired _KeepRepaired{"keeprepaired", "Keep Vehicle Clean & Repaired", "Keeps your vehicle clean and repaired."};
 }
