@@ -5,7 +5,7 @@
 namespace YimMenu::Submenus
 {
 	World::World() :
-		#define ICON_FA_GLOBE "\xef\x82\xac"
+#define ICON_FA_GLOBE "\xef\x82\xac"
 	    Submenu::Submenu("World", ICON_FA_GLOBE)
 	{
 		auto main = std::make_shared<Category>("Main");
@@ -31,14 +31,22 @@ namespace YimMenu::Submenus
 
 		auto timeGroup = std::make_shared<Group>("Time");
 
-		auto hms = std::make_shared<Group>("", 1);
-		hms->AddItem(std::make_shared<IntCommandItem>("networktimehour"_J, "Hour"));
-		hms->AddItem(std::make_shared<IntCommandItem>("networktimeminute"_J, "Minute"));
-		hms->AddItem(std::make_shared<IntCommandItem>("networktimesecond"_J, "Second"));
-		timeGroup->AddItem(std::move(hms));
+		// Passing false disables the slider and uses a numeric input instead.
+		auto timeControls = std::make_shared<Group>("", 1);
+		timeControls->AddItem(std::make_shared<IntCommandItem>("networktimehour"_J, "Hour", false));
+		timeControls->AddItem(std::make_shared<IntCommandItem>("networktimeminute"_J, "Minute", false));
+		timeControls->AddItem(std::make_shared<CommandItem>("setnetworktime"_J, "Apply"));
+		timeControls->AddItem(std::make_shared<BoolCommandItem>("freezenetworktime"_J, "Freeze"));
 
-		timeGroup->AddItem(std::make_shared<CommandItem>("setnetworktime"_J, "Set"));
-		timeGroup->AddItem(std::make_shared<BoolCommandItem>("freezenetworktime"_J, "Freeze"));
+		timeGroup->AddItem(std::move(timeControls));
+
+		auto timePresets = std::make_shared<Group>("Presets", 1);
+		timePresets->AddItem(std::make_shared<CommandItem>("networktimedawn"_J));
+		timePresets->AddItem(std::make_shared<CommandItem>("networktimenoon"_J));
+		timePresets->AddItem(std::make_shared<CommandItem>("networktimesunset"_J));
+		timePresets->AddItem(std::make_shared<CommandItem>("networktimemidnight"_J));
+
+		timeGroup->AddItem(std::move(timePresets));
 
 		auto otherOpts = std::make_shared<Group>("Other", 1);
 		otherOpts->AddItem(std::make_shared<BoolCommandItem>("pedsignore"_J));
@@ -52,7 +60,7 @@ namespace YimMenu::Submenus
 		main->AddItem(std::move(bringOpts));
 		main->AddItem(std::move(weatherOpts));
 		main->AddItem(std::move(otherOpts));
-		main->AddItem(timeGroup);
+		main->AddItem(std::move(timeGroup));
 
 		iplsGroup->AddItem(std::make_shared<ListCommandItem>("iplselector"_J));
 		iplsGroup->AddItem(std::make_shared<CommandItem>("loadipl"_J));
