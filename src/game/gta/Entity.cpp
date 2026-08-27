@@ -406,7 +406,10 @@ namespace YimMenu
 	{
 		ENTITY_ASSERT_VALID();
 		ENTITY_ASSERT_CONTROL();
-		ENTITY::SET_ENTITY_INVINCIBLE(GetHandle(), status, true);
+		
+		ENTITY::SET_ENTITY_PROOFS(GetHandle(), status, status, status, status, status, status, status, status);
+		PED::SET_PED_CAN_RAGDOLL(GetHandle(), !status);
+		//ENTITY::SET_ENTITY_INVINCIBLE(GetHandle(), status, true);
 	}
 
 	bool Entity::IsDead()
