@@ -1,15 +1,11 @@
 #include "SavedWeaponLoadouts.hpp"
 
+#include "core/commands/LoopedCommand.hpp"
 #include "core/frontend/Notifications.hpp"
 #include "game/backend/Self.hpp"
 #include "game/gta/data/WeaponComponents.hpp"
 #include "game/gta/data/Weapons.hpp"
 #include "game/gta/Natives.hpp"
-
-#include <algorithm>
-#include <filesystem>
-#include <format>
-#include <fstream>
 
 namespace YimMenu
 {
@@ -17,6 +13,13 @@ namespace YimMenu
 	{
 		return componentName.find("_CAMO") != std::string_view::npos;
 	}
+
+	using AutoApplyClock = std::chrono::steady_clock;
+
+	static constexpr auto g_AutoApplyDelay = std::chrono::seconds(2);
+
+	static nlohmann::json g_LastAppliedLoadout;
+	static std::string g_LastAppliedLoadoutName;
 
 	Folder SavedWeaponLoadouts::CheckFolder()
 	{
@@ -216,7 +219,8 @@ namespace YimMenu
 
 		const auto handle = ped.GetHandle();
 
-		WEAPON::REMOVE_ALL_PED_WEAPONS(handle, false);
+		// Comment this out for now as it can break some missions in single player
+		//WEAPON::REMOVE_ALL_PED_WEAPONS(handle, false);
 
 		for (const auto& weapon : loadout["weapons"])
 		{
@@ -284,6 +288,21 @@ namespace YimMenu
 		return true;
 	}
 
+	bool SavedWeaponLoadouts::HasLastApplied()
+	{
+		return !g_LastAppliedLoadout.empty();
+	}
+
+	bool SavedWeaponLoadouts::RestoreLastApplied()
+	{
+		if (!HasLastApplied() || !ApplyJson(g_LastAppliedLoadout))
+			return false;
+
+		Notifications::Show("Weapon Loadouts", std::format("Restored {}", g_LastAppliedLoadoutName), NotificationType::Success);
+
+		return true;
+	}
+
 	bool SavedWeaponLoadouts::Load(const std::string& fileName)
 	{
 		if (fileName.empty())
@@ -332,6 +351,9 @@ namespace YimMenu
 				return false;
 			}
 
+			g_LastAppliedLoadout = loadout;
+			g_LastAppliedLoadoutName = fileName;
+
 			Notifications::Show("Weapon Loadouts", std::format("Applied {}", fileName), NotificationType::Success);
 
 			return true;
@@ -374,4 +396,67 @@ namespace YimMenu
 			return false;
 		}
 	}
+
+	class AutoApplyWeaponLoadouts final : public LoopedCommand
+	{
+		using LoopedCommand::LoopedCommand;
+
+		void OnEnable() override
+		{
+			ResetState();
+		}
+
+		void OnTick() override
+		{
+			if (!SavedWeaponLoadouts::HasLastApplied())
+				return;
+
+			auto ped = Self::GetPed();
+
+			if (!ped)
+				return;
+
+			const int handle = ped.GetHandle();
+			const bool transitioning = STREAMING::IS_PLAYER_SWITCH_IN_PROGRESS() || STREAMING::IS_NEW_LOAD_SCENE_ACTIVE() || CUTSCENE::IS_CUTSCENE_ACTIVE() || CAMERA::IS_SCREEN_FADED_OUT();
+
+			const bool pedChanged = m_LastPedHandle != 0 && m_LastPedHandle != handle;
+			const bool transitionFinished = m_WasTransitioning && !transitioning;
+			const auto now = AutoApplyClock::now();
+
+			m_LastPedHandle = handle;
+			m_WasTransitioning = transitioning;
+
+			if (transitionFinished || pedChanged)
+			{
+				m_RestorePending = true;
+				m_RestoreAt = now + g_AutoApplyDelay;
+			}
+
+			if (transitioning || !m_RestorePending || now < m_RestoreAt)
+				return;
+
+			if (SavedWeaponLoadouts::RestoreLastApplied())
+				m_RestorePending = false;
+		}
+
+		void OnDisable() override
+		{
+			ResetState();
+		}
+
+		void ResetState()
+		{
+			m_LastPedHandle = 0;
+			m_WasTransitioning = false;
+			m_RestorePending = false;
+			m_RestoreAt = {};
+		}
+
+		int m_LastPedHandle = 0;
+		bool m_WasTransitioning = false;
+		bool m_RestorePending = false;
+		AutoApplyClock::time_point m_RestoreAt;
+	};
+
+	static AutoApplyWeaponLoadouts _AutoApplyWeaponLoadouts{"autoapplyloadouts", "Auto Apply Loadouts", "Restores the last-applied weapon loadout after scene or character changes."};
 }

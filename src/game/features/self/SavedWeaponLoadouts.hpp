@@ -13,6 +13,9 @@ namespace YimMenu
 		static bool Load(const std::string& fileName);
 		static bool Delete(const std::string& fileName);
 
+		static bool HasLastApplied();
+		static bool RestoreLastApplied();
+
 	private:
 		static Folder CheckFolder();
 		static std::string SanitizeFileName(std::string fileName);

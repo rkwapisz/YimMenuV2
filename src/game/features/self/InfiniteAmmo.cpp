@@ -1,5 +1,6 @@
 #include "core/commands/LoopedCommand.hpp"
 #include "game/backend/Self.hpp"
+#include "game/gta/data/Weapons.hpp"
 #include "game/gta/Natives.hpp"
 
 namespace YimMenu::Features
@@ -8,7 +9,7 @@ namespace YimMenu::Features
 	{
 		using LoopedCommand::LoopedCommand;
 
-		static void RefillCurrentWeaponAmmo()
+		static void RefillAllWeaponAmmo()
 		{
 			auto ped = Self::GetPed();
 
@@ -16,62 +17,40 @@ namespace YimMenu::Features
 				return;
 
 			const auto handle = ped.GetHandle();
-			const Hash weaponHash = WEAPON::GET_SELECTED_PED_WEAPON(handle);
 
-			if (weaponHash == "WEAPON_UNARMED"_J)
-				return;
-
-			const Hash ammoType = WEAPON::GET_PED_AMMO_TYPE_FROM_WEAPON(handle, weaponHash);
-
-			if (ammoType == 0)
-				return;
-
-			int maxAmmo = 0;
-
-			if (!WEAPON::GET_MAX_AMMO_BY_TYPE(handle, ammoType, &maxAmmo))
+			for (const auto weaponHash : g_WeaponHashes)
 			{
-				return;
-			}
+				if (!WEAPON::IS_WEAPON_VALID(weaponHash) || !WEAPON::HAS_PED_GOT_WEAPON(handle, weaponHash, false))
+				{
+					continue;
+				}
 
-			WEAPON::SET_PED_AMMO_BY_TYPE(handle, ammoType, maxAmmo);
+				int maxAmmo = 0;
 
-			const int maxClipAmmo = WEAPON::GET_MAX_AMMO_IN_CLIP(handle, weaponHash, false);
+				if (WEAPON::GET_MAX_AMMO(handle, weaponHash, &maxAmmo))
+				{
+					WEAPON::SET_PED_AMMO(handle, weaponHash, maxAmmo, false);
+				}
 
-			if (maxClipAmmo <= 0)
-				return;
+				Hash ammoType = WEAPON::GET_PED_AMMO_TYPE_FROM_WEAPON(handle, weaponHash);
 
-			int clipAmmo = 0;
+				int maxTypeAmmo = 0;
 
-			if (!WEAPON::GET_AMMO_IN_CLIP(handle, weaponHash, &clipAmmo))
-			{
-				return;
-			}
+				if (WEAPON::GET_MAX_AMMO_BY_TYPE(handle, ammoType, &maxTypeAmmo))
+				{
+					WEAPON::SET_PED_AMMO_BY_TYPE(handle, ammoType, maxTypeAmmo);
+				}
 
-			if (clipAmmo < maxClipAmmo)
-			{
-				WEAPON::SET_AMMO_IN_CLIP(handle, weaponHash, maxClipAmmo);
+				int clipSize = WEAPON::GET_WEAPON_CLIP_SIZE(weaponHash);
 
-				WEAPON::MAKE_PED_RELOAD(handle);
-				WEAPON::REFILL_AMMO_INSTANTLY(handle);
+				WEAPON::SET_AMMO_IN_CLIP(handle, weaponHash, clipSize);
+
 			}
 		}
 
 		virtual void OnTick() override
 		{
-			auto ped = Self::GetPed();
-
-			if (!ped)
-				return;
-
-			ped.SetInfiniteAmmo(true);
-
-			RefillCurrentWeaponAmmo();
-		}
-
-		virtual void OnDisable() override
-		{
-			if (auto ped = Self::GetPed())
-				ped.SetInfiniteAmmo(false);
+			RefillAllWeaponAmmo();
 		}
 	};
 

@@ -346,7 +346,7 @@ namespace YimMenu::Submenus
 			refreshRequested = true;
 
 		ImGui::Spacing();
-		ImGui::TextDisabled("Applying a loadout replaces all current weapons.");
+		BoolCommandItem("autoapplyloadouts"_J).Draw();
 	}
 
 	static std::shared_ptr<Group> RenderCustomWeaponsMenu()
