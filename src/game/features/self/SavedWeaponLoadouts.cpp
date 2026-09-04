@@ -352,9 +352,9 @@ namespace YimMenu
 			}
 
 			g_LastAppliedLoadout = loadout;
-			g_LastAppliedLoadoutName = fileName;
+			g_LastAppliedLoadoutName = std::filesystem::path(fileName).stem().generic_string();
 
-			Notifications::Show("Weapon Loadouts", std::format("Applied {}", fileName), NotificationType::Success);
+			Notifications::Show("Weapon Loadouts", std::format("Applied {}", g_LastAppliedLoadoutName), NotificationType::Success);
 
 			return true;
 		}
