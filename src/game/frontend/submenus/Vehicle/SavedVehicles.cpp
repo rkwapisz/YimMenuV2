@@ -1,11 +1,14 @@
-#include "SavedVehicles.hpp"
 #include "core/commands/BoolCommand.hpp"
 #include "core/backend/FiberPool.hpp"
-#include "core/backend/ScriptMgr.hpp"
+#include "core/filemgr/FileMgr.hpp"
+#include "core/frontend/manager/Category.hpp"
 #include "core/frontend/Notifications.hpp"
 #include "core/util/Strings.hpp"
 #include "game/backend/Self.hpp"
 #include "game/backend/SavedVehicles.hpp"
+#include "game/frontend/items/Items.hpp"
+#include "game/gta/data/Vehicles.hpp"
+#include "game/gta/Natives.hpp"
 #include "game/gta/Vehicle.hpp"
 #include "misc/cpp/imgui_stdlib.h"
 
@@ -32,6 +35,50 @@ namespace YimMenu::Submenus
 			});
 			return value;
 		}
+
+		using SavedVehicleClassCache = std::unordered_map<std::string, std::optional<int>>;
+
+		std::optional<int> GetSavedVehicleClass(const std::string& folderName, const std::string& fileName, SavedVehicleClassCache& cache)
+		{
+			const auto path = FileMgr::GetProjectFolder("./saved_json_vehicles/" + folderName).GetFile(fileName).Path();
+			const std::string cacheKey = folderName + "/" + fileName;
+
+			if (const auto cached = cache.find(cacheKey); cached != cache.end())
+				return cached->second;
+
+			std::optional<int> vehicleClass;
+
+			try
+			{
+				std::ifstream fileStream(path);
+				nlohmann::json vehicleJson;
+				fileStream >> vehicleJson;
+
+				for (const auto& item : vehicleJson.items())
+				{
+					const auto& value = item.value();
+					if (!value.is_number_integer() && !value.is_number_unsigned())
+						continue;
+
+					const std::uint32_t candidate = value.get<std::uint32_t>();
+					if (!STREAMING::IS_MODEL_A_VEHICLE(candidate))
+						continue;
+
+					const int loadedClass = VEHICLE::GET_VEHICLE_CLASS_FROM_NAME(candidate);
+					if (loadedClass >= 0 && loadedClass < static_cast<int>(g_VehicleClassNames.size()))
+						vehicleClass = loadedClass;
+
+					break;
+				}
+			}
+			catch (const std::exception&)
+			{
+				// Don't try to assign classes to broken vehicle saves
+			}
+
+			cache.emplace(cacheKey, vehicleClass);
+			return vehicleClass;
+		}
 	}
 
 	std::shared_ptr<Category> BuildSavedVehiclesMenu()
@@ -39,12 +86,21 @@ namespace YimMenu::Submenus
 		static std::string folder{}, file{};
 		static std::vector<std::string> folders{}, files{};
 		static std::string vehicleFileNameInput{}, newFolder{}, search{};
+		static int selectedClass{-1};
+		static SavedVehicleClassCache vehicleClassCache{};
 
 		auto persistCar = std::make_shared<Category>("Saved Vehicles");
 
 		persistCar->AddItem(std::make_shared<BoolCommandItem>("spawninsidesavedveh"_J));
 
 		persistCar->AddItem(std::make_unique<ImGuiItem>([] {
+			const auto refreshList = [] {
+				vehicleClassCache.clear();
+				FiberPool::Push([] {
+					SavedVehicles::RefreshList(folder, folders, files);
+				});
+			};
+
 			// Remove the need to refresh the list manually when the tab is opened
 			static int lastDrawnFrame = -1;
 			const int currentFrame = ImGui::GetFrameCount();
@@ -52,9 +108,7 @@ namespace YimMenu::Submenus
 			lastDrawnFrame = currentFrame;
 
 			if (justOpened)
-				FiberPool::Push([] {
-					SavedVehicles::RefreshList(folder, folders, files);
-				});
+				refreshList();
 
 			auto vehicle = Self::GetVehicle();
 			const bool inVehicle = vehicle.IsValid();
@@ -65,9 +119,7 @@ namespace YimMenu::Submenus
 				if (ImGui::Selectable("Root", folder.empty()))
 				{
 					folder.clear();
-					FiberPool::Push([] {
-						SavedVehicles::RefreshList(folder, folders, files);
-					});
+					refreshList();
 				}
 
 				for (const auto& folderName : folders)
@@ -75,9 +127,7 @@ namespace YimMenu::Submenus
 					if (ImGui::Selectable(folderName.c_str(), folder == folderName))
 					{
 						folder = folderName;
-						FiberPool::Push([] {
-							SavedVehicles::RefreshList(folder, folders, files);
-						});
+						refreshList();
 					}
 				}
 
@@ -86,9 +136,7 @@ namespace YimMenu::Submenus
 
 			ImGui::SameLine();
 			if (ImGui::Button("Refresh List"))
-				FiberPool::Push([] {
-					SavedVehicles::RefreshList(folder, folders, files);
-				});
+				refreshList();
 
 			ImGui::SameLine();
 			ImGui::TextDisabled("%d saved", static_cast<int>(files.size()));
@@ -108,6 +156,21 @@ namespace YimMenu::Submenus
 				ImGui::SetNextItemWidth(-FLT_MIN);
 				ImGui::InputTextWithHint("##veh_search", "Search", &search);
 
+				ImGui::SetNextItemWidth(240.f);
+				if (ImGui::BeginCombo("Class", selectedClass == -1 ? "All" : g_VehicleClassNames[selectedClass]))
+				{
+					if (ImGui::Selectable("All", selectedClass == -1))
+						selectedClass = -1;
+
+					for (int vehicleClass = 0; vehicleClass < static_cast<int>(g_VehicleClassNames.size()); ++vehicleClass)
+					{
+						if (ImGui::Selectable(g_VehicleClassNames[vehicleClass], selectedClass == vehicleClass))
+							selectedClass = vehicleClass;
+					}
+
+					ImGui::EndCombo();
+				}
+
 				const std::string searchLower = ToLower(search);
 
 				if (ImGui::BeginListBox("##saved_vehs", ImVec2(-FLT_MIN, -FLT_MIN)))
@@ -120,6 +183,13 @@ namespace YimMenu::Submenus
 
 						if (!searchLower.empty() && !ToLower(displayName).contains(searchLower))
 							continue;
+
+						if (selectedClass != -1)
+						{
+							const auto vehicleClass = GetSavedVehicleClass(folder, fileName, vehicleClassCache);
+							if (!vehicleClass || *vehicleClass != selectedClass)
+								continue;
+						}
 
 						anyVisible = true;
 
@@ -139,7 +209,14 @@ namespace YimMenu::Submenus
 					}
 
 					if (!anyVisible)
-						ImGui::TextDisabled(files.empty() ? "  No saved vehicles in this folder." : "  No matches."); // Provide some feedback to the user so they're not just seeing an empty panel without explanation
+					{
+						if (files.empty())
+							ImGui::TextDisabled("  No saved vehicles in this folder.");
+						else if (searchLower.empty() && selectedClass != -1)
+							ImGui::TextDisabled("  No saved vehicles in this class.");
+						else
+							ImGui::TextDisabled("  No matches.");
+					}
 
 					ImGui::EndListBox();
 				}
@@ -192,6 +269,8 @@ namespace YimMenu::Submenus
 								folder = newFolder; // jump to the folder we just saved into
 								newFolder.clear();
 							}
+
+							vehicleClassCache.clear();
 
 							FiberPool::Push([targetFolder, fileName] {
 								SavedVehicles::Save(targetFolder, fileName);
