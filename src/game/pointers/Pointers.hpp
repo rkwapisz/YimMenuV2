@@ -3,6 +3,8 @@
 #include "types/rage/ObfVar.hpp"
 #include "core/memory/BytePatches.hpp"
 #include "types/rage/gameViewport.hpp"
+#include <d3d12.h>
+#include <dxgi1_4.h>
 
 namespace rage
 {
@@ -72,6 +74,9 @@ namespace YimMenu
 
 	struct PointerData
 	{
+		IDXGISwapChain1** SwapChain;
+		ID3D12CommandQueue** CommandQueue;
+		PVOID WndProc;
 		std::uint32_t* ScreenResX;
 		std::uint32_t* ScreenResY;
 		const char* GameVersion;
