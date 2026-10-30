@@ -2,6 +2,8 @@
 #include "game/backend/NativeHooks.hpp"
 #include "game/gta/Natives.hpp"
 #include "types/netshop/netCatalog.hpp"
+#include "game/backend/ScriptPatches.hpp"
+
 namespace YimMenu::Features
 {
 	struct BASKET_ITEM_DATA
@@ -15,31 +17,7 @@ namespace YimMenu::Features
 
 
 	constexpr joaat_t FreePurchaseCoupon = "PO_COUPON_CAR_XMAS2017"_J;
-
-
-	static bool IsPropertyAction(joaat_t action)
-	{
-		return action == "NET_SHOP_ACTION_BUY_PROPERTY"_J
-		    || action == "NET_SHOP_ACTION_BUY_WAREHOUSE"_J;
-	}
-
-    static int GetStatValueFromHash(joaat_t itemHash)
-	{
-		auto* catalog = Pointers.NetCatalog;
-		if (!catalog)
-			return -1;
-
-		int result = -1;
-
-		catalog->ForEachItem([&](const rage::netCatalogBaseItem& item) {
-			if (result != -1)
-				return;
-			if (item.m_Hash == itemHash)
-				result = item.m_StatValue;
-		});
-
-		return result;
-	}
+	constexpr int CasinoInteriorId = 275201;
 
 
 	constexpr joaat_t DiscountModifiers[] = {
@@ -97,30 +75,133 @@ namespace YimMenu::Features
 	    "PM_WEAPON_DISCOUNT_SILVER_HEADSHOT"_J,
 	    "PM_WEAPON_DISCOUNT_SILVER_KILLS"_J,
 	    "PM_WEAPON_DISCOUNT_SILVER_MEDAL"_J,
-	    "PM_WEAPON_PIM_AMMO_INCREASE"_J};
+	    "PM_WEAPON_PIM_AMMO_INCREASE"_J
+	};
+
+	struct BasketContext
+	{
+		joaat_t Category = 0;
+		joaat_t Action = 0;
+	};
+
+	BasketContext _BasketContext{};
+
+
+	struct CatalogCandidate
+	{
+		joaat_t Hash{};
+		int Price{};
+	};
+
+	static bool IsPropertyAction(joaat_t action)
+	{
+		return action == "NET_SHOP_ACTION_BUY_PROPERTY"_J
+		    || action == "NET_SHOP_ACTION_BUY_WAREHOUSE"_J;
+	}
+
+
+	static bool IsWarehouseCategory(joaat_t category)
+	{
+		return category == "CATEGORY_WAREHOUSE"_J
+		    || category == "CATEGORY_INVENTORY_WAREHOUSE"_J
+		    || category == "CATEGORY_WAREHOUSE_INTERIOR"_J
+		    || category == "CATEGORY_INVENTORY_WAREHOUSE_INTERIOR"_J;
+	}
 
 	static bool IsDiscountModifier(joaat_t itemId)
 	{
 		return std::ranges::contains(DiscountModifiers, itemId);
 	}
 
+	static bool IsPlayerInCasino()
+	{
+		return INTERIOR::GET_INTERIOR_FROM_ENTITY(
+		           PLAYER::PLAYER_PED_ID())
+		    == CasinoInteriorId;
+	}
 
-	static joaat_t CurrentBasketAction = 0;
-	static joaat_t CurrentBasketCategory = 0;
+	static std::optional<std::int32_t> GetStatValue(joaat_t hash)
+	{
+		auto* catalog = Pointers.NetCatalog;
+		if (!catalog)
+			return std::nullopt;
+
+		std::optional<std::int32_t> result;
+		catalog->ForEachItem([&](const rage::netCatalogBaseItem& entry) {
+			if (!result && entry.m_Hash == hash)
+				result = entry.m_StatValue;
+		});
+		return result;
+	}
+
+	static std::optional<CatalogCandidate> FindCheapestEntry(
+	    std::int32_t statValue, bool warehouseOnly)
+	{
+		auto* catalog = Pointers.NetCatalog;
+		if (!catalog)
+			return std::nullopt;
+
+		std::optional<CatalogCandidate> best;
+		catalog->ForEachItem([&](const rage::netCatalogBaseItem& entry) {
+			if (entry.m_Hash == 0 || entry.m_StatValue != statValue || entry.m_Price < 0)
+				return;
+
+			if (warehouseOnly && !IsWarehouseCategory(entry.m_CategoryHash))
+				return;
+
+			if (!best || entry.m_Price < best->Price)
+				best = CatalogCandidate{entry.m_Hash, entry.m_Price};
+		});
+		return best;
+	}
 
 
+	static void PropertyReplacement(BASKET_ITEM_DATA& item, int originalPrice)
+	{
+		const auto statValue = GetStatValue(
+		    static_cast<joaat_t>(item.Item));
+		if (!statValue)
+			return;
+
+		std::optional<CatalogCandidate> candidate;
+		if (_BasketContext.Action == "NET_SHOP_ACTION_BUY_WAREHOUSE"_J)
+			candidate = FindCheapestEntry(*statValue, true);
+
+		if (!candidate || candidate->Price >= originalPrice)
+			candidate = FindCheapestEntry(*statValue, false);
+
+		if (candidate)
+		{
+			item.Item = candidate->Hash;
+			item.Price = candidate->Price;
+		}
+	}
+
+
+
+	static void NetGameServerGetPriceHook(rage::scrNativeCallContext* ctx);
 	static void NetGameServerBasketStartHook(rage::scrNativeCallContext* ctx);
 	static void NetGameServerBasketAddItemHook(rage::scrNativeCallContext* ctx);
 	static void UseFakeMPCashHook(rage::scrNativeCallContext* ctx);
 	static void ChangeFakeMPCashHook(rage::scrNativeCallContext* ctx);
+	static void NetworkCanSpendMoneyHook(rage::scrNativeCallContext* ctx);
 
 	class FreeShopping : public BoolCommand
 	{
 		using BoolCommand::BoolCommand;
 
+		ScriptPatch m_PenthouseScriptPatch{};
+		ScriptPatch m_CasinoScriptPatch{};
+
 		virtual void OnEnable() override
 		{
 			static auto initHooks = []() {
+				NativeHooks::AddHook(NativeHooks::ALL_SCRIPTS,
+				    NativeIndex::NETWORK_CAN_SPEND_MONEY,
+				    &NetworkCanSpendMoneyHook);
+				NativeHooks::AddHook(NativeHooks::ALL_SCRIPTS,
+				    NativeIndex::NET_GAMESERVER_GET_PRICE,
+				    &NetGameServerGetPriceHook);
 				NativeHooks::AddHook(NativeHooks::ALL_SCRIPTS,
 				    NativeIndex::NET_GAMESERVER_BASKET_START,
 				    &NetGameServerBasketStartHook);
@@ -135,8 +216,36 @@ namespace YimMenu::Features
 				    &ChangeFakeMPCashHook);
 				return true;
 			}();
+
+			if (!m_PenthouseScriptPatch)
+			{
+				m_PenthouseScriptPatch = ScriptPatches::AddPatch(
+				    "am_mp_casino_apartment"_J,
+				    ScriptPointer("PenthouseDecorCashOnly", "37 03 41 0C 71 5C 81 00 38 00 25 11 2C 08 00 EA"),
+				    {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
+			}
+
+			m_PenthouseScriptPatch->Enable();
+
+			if (!m_CasinoScriptPatch)
+			{
+				m_CasinoScriptPatch = ScriptPatches::AddPatch(
+				    "am_mp_casino"_J,
+				    ScriptPointer("SkipChipTransaction", "38 00 2F 74 82 06 56 3C 00 38 00 78 5D 7E F3 24"),
+				    {0x72, 0x00, 0x00, 0x00, 0x00});
+			}
+
+			m_CasinoScriptPatch->Enable();
+		}
+		virtual void OnDisable() override
+		{
+			if (m_PenthouseScriptPatch)
+				m_PenthouseScriptPatch->Disable();
+			if (m_CasinoScriptPatch)
+				m_CasinoScriptPatch->Disable();
 		}
 	};
+
 
 	static FreeShopping _FreeShopping{
 	    "freeshopping",
@@ -144,10 +253,24 @@ namespace YimMenu::Features
 	    "Allows you to buy everything for free."};
 
 
+    static void NetGameServerGetPriceHook(rage::scrNativeCallContext* ctx)
+	{
+		const auto categoryHash = ctx->GetArg<joaat_t>(1);
+
+		if (_FreeShopping.GetState() && categoryHash == "CATEGORY_CLOTH"_J && IsPlayerInCasino())
+		{
+			ctx->SetReturnValue(0);
+			return;
+		}
+
+		NativeInvoker::GetNativeHandler(
+		    NativeIndex::NET_GAMESERVER_GET_PRICE)(ctx);
+	}
+
 	static void NetGameServerBasketStartHook(rage::scrNativeCallContext* ctx)
 	{
-		CurrentBasketCategory = ctx->GetArg<joaat_t>(1);
-		CurrentBasketAction = ctx->GetArg<joaat_t>(2);
+		_BasketContext.Category = ctx->GetArg<joaat_t>(1);
+		_BasketContext.Action = ctx->GetArg<joaat_t>(2);
 
 		NativeInvoker::GetNativeHandler(
 		    NativeIndex::NET_GAMESERVER_BASKET_START)(ctx);
@@ -156,81 +279,78 @@ namespace YimMenu::Features
 
 	static void NetGameServerBasketAddItemHook(rage::scrNativeCallContext* ctx)
 	{
-		auto itemData = ctx->GetArg<BASKET_ITEM_DATA*>(0);
+		auto* item = ctx->GetArg<BASKET_ITEM_DATA*>(0);
 		const int quantity = ctx->GetArg<int>(1);
 
-		const auto itemId = static_cast<joaat_t>(itemData->Key);
-		const int price = itemData->Price;
-
-
-		auto callOriginal = [&](BASKET_ITEM_DATA* entry) -> BOOL {
-			return NETSHOPPING::NET_GAMESERVER_BASKET_ADD_ITEM(entry, quantity);
-		};
-
-		const bool freeShopping = _FreeShopping.GetState();
-
-
-		if (freeShopping && IsPropertyAction(CurrentBasketAction) && price > 0)
+		if (!item)
 		{
-			const int statValue = GetStatValueFromHash(static_cast<joaat_t>(itemData->Item));
-
-			if (statValue >= 0)
-			{
-				auto* catalog = Pointers.NetCatalog;
-				joaat_t bestHash = 0;
-				int bestPrice = INT_MAX;
-
-				catalog->ForEachItem([&](const rage::netCatalogBaseItem& entry) {
-					if (entry.m_StatValue != statValue)
-						return;
-					if (entry.m_Price < 0)
-						return;
-					if (entry.m_Price >= bestPrice)
-						return;
-					bestHash = entry.m_Hash;
-					bestPrice = entry.m_Price;
-				});
-
-				if (bestHash)
-				{
-					itemData->Item = bestHash;
-					itemData->Price = bestPrice;
-				}
-			}
-
-			ctx->SetReturnValue(callOriginal(itemData));
+			ctx->SetReturnValue(FALSE);
 			return;
 		}
 
+		const auto addItem = [quantity](BASKET_ITEM_DATA* entry) -> BOOL {
+			return NETSHOPPING::NET_GAMESERVER_BASKET_ADD_ITEM(entry, quantity);
+		};
 
-		if (freeShopping && IsDiscountModifier(itemId))
+		const auto forward = [&](BASKET_ITEM_DATA* entry) {
+			ctx->SetReturnValue(addItem(entry));
+		};
+
+		if (!_FreeShopping.GetState() || _BasketContext.Category == "CATEGORY_CASINO_CHIPS"_J)
+		{
+			forward(item);
+			return;
+		}
+
+		const joaat_t itemId = static_cast<joaat_t>(item->Key);
+		const int originalPrice = item->Price;
+
+		if (itemId == "SERVICE_SPEND_STYLIST_FEE"_J)
 		{
 			ctx->SetReturnValue(TRUE);
 			return;
 		}
 
+		if (originalPrice > 0 && IsPropertyAction(_BasketContext.Action))
 
-		const bool applyCoupon = freeShopping && price > 0;
 
-		if (applyCoupon)
-			itemData->Price = 0;
-
-		const BOOL itemAdded = callOriginal(itemData);
-
-		if (applyCoupon && itemAdded)
+        if (_FreeShopping.GetState() && IsPropertyAction(_BasketContext.Action) && originalPrice > 0)
 		{
-			BASKET_ITEM_DATA couponData{};
-			couponData.Key = FreePurchaseCoupon;
-			couponData.Item = itemId;
-			couponData.Price = 0;
-			couponData.StatValue = itemData->StatValue;
-
-			const BOOL couponAdded = callOriginal(&couponData);
-			ctx->SetReturnValue(couponAdded);
+			PropertyReplacement(*item, originalPrice);
+			forward(item);
 			return;
 		}
 
-		ctx->SetReturnValue(itemAdded);
+		if (IsDiscountModifier(itemId))
+		{
+			ctx->SetReturnValue(TRUE);
+			return;
+		}
+
+		const bool isCasinoClothing =
+		    _BasketContext.Category == "CATEGORY_CLOTH"_J && IsPlayerInCasino();
+
+		const bool applyCoupon = originalPrice > 0 || isCasinoClothing;
+
+		if (applyCoupon)
+			item->Price = 0;
+
+		const BOOL itemAdded = addItem(item);
+
+		if (!applyCoupon || !itemAdded)
+		{
+			ctx->SetReturnValue(itemAdded);
+			return;
+		}
+
+		BASKET_ITEM_DATA coupon{};
+		coupon.Key = FreePurchaseCoupon;
+		coupon.Item = itemId;
+		coupon.Price = 0;
+		coupon.StatValue = item->StatValue;
+
+		ctx->SetReturnValue(addItem(&coupon));
+
 	}
 
 
@@ -248,5 +368,17 @@ namespace YimMenu::Features
 			return;
 
 		HUD::CHANGE_FAKE_MP_CASH(ctx->GetArg<int>(0), ctx->GetArg<int>(1));
+	}
+	
+	static void NetworkCanSpendMoneyHook(rage::scrNativeCallContext* ctx)
+	{
+		if (_FreeShopping.GetState())
+		{
+			ctx->SetReturnValue(TRUE);
+			return;
+		}
+
+		NativeInvoker::GetNativeHandler(
+		    NativeIndex::NETWORK_CAN_SPEND_MONEY)(ctx);
 	}
 }
